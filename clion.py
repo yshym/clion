@@ -11,9 +11,9 @@ class ClionCommandNotExists(Exception):
 
 class Clion:
     def __init__(self):
-        self._commands = set()
+        self._commands = {}
         self._command_aliases = {}
-        self._actions = defaultdict(set)
+        self._actions = defaultdict(dict)
         self._action_aliases = defaultdict(dict)
 
     def command(self, aliases=None):
@@ -21,7 +21,7 @@ class Clion:
 
         def decorator_command(command_func):
             command_name = command_func.__name__
-            self._commands.add(command_name)
+            self._commands[command_name] = command_func
             while aliases:
                 self._command_aliases[aliases.pop()] = command_name
 
@@ -30,7 +30,7 @@ class Clion:
 
                 def decorator_action(action_func):
                     _, action_name = action_func.__name__.split("_")
-                    self._actions[command_name].add(action_name)
+                    self._actions[command_name][action_name] = action_func
                     while aliases:
                         self._action_aliases[command_name][
                             aliases.pop()
@@ -87,16 +87,13 @@ class Clion:
                 or args.action
             )
             del args.action
-        function_name = f"{command}_{action}" if action else command
-        command_function = (
-            globals()[function_name] if command in self._commands else None
+        func = (
+            self._actions[command][action]
+            if action
+            else self._commands[command]
         )
-        pargs = (
-            unknown
-            if self.command_forwards_arguments(command_function)
-            else []
-        )
-        return command_function(*pargs, **vars(args))
+        pargs = unknown if self.command_forwards_arguments(func) else []
+        return func(*pargs, **vars(args))
 
     def add_parser(self, subparsers, name, command=None):
         aliases = (
@@ -104,10 +101,10 @@ class Clion:
             if command
             else self.aliases_from_command(name)
         )
-        function_name = f"{command}_{name}" if command else name
-        if function_name not in globals():
-            raise NameError(f"function '{function_name}' is not defined")
-        doc = globals()[function_name].__doc__
+        func = (
+            self._actions[command][name] if command else self._commands[name]
+        )
+        doc = func.__doc__
         help_ = doc.split("\n\n", maxsplit=1)[0].strip() if doc else None
         return subparsers.add_parser(name, aliases=aliases, help=help_)
 
@@ -124,7 +121,9 @@ class Clion:
 
     def args_from_function(self, name: str, command=None):
         arguments = []
-        func = globals()[f"{command}_{name}"] if command else globals()[name]
+        func = (
+            self._actions[command][name] if command else self._commands[name]
+        )
         signature = inspect.signature(func.__dict__.get("__wrapped__", func))
         for param in signature.parameters.values():
             if str(param)[0] == "*":
