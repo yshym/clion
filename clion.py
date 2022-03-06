@@ -81,21 +81,21 @@ class Clion:
         )
 
     def _execute_command(self, command, args, unknown):
-        if (
-            command not in self._commands
-            and command not in self._command_aliases
-        ):
-            raise ClionCommandNotExists("command does not exist")
         command = self._command_aliases.get(command, command)
+        if not command:
+            raise ClionCommandNotExists("command does not exist")
         action = None
         if "action" in args:
-            action = (
-                self._action_aliases.get(command).get(args.action)
-                or args.action
+            action = self._action_aliases.get(command).get(
+                args.action, args.action
             )
             del args.action
         func = self._func_from_command_and_action(command, action)
         pargs = unknown if self._command_forwards_arguments(func) else []
+        func_signature = self._function_signature(func)
+        for arg in args.__dict__.copy():
+            if arg not in func_signature.parameters:
+                delattr(args, arg)
         return func(*pargs, **vars(args))
 
     def _add_parser(self, subparsers, command, action=None):
@@ -123,10 +123,14 @@ class Clion:
         param_docs = re.findall(r"(?P<name>\w+)\n\s*(?P<doc>.+)\n", doc)
         return dict(param_docs)
 
+    @staticmethod
+    def _function_signature(func):
+        return inspect.signature(func.__dict__.get("__wrapped__", func))
+
     def _args_from_function(self, command, action=None):
         arguments = []
         func = self._func_from_command_and_action(command, action)
-        signature = inspect.signature(func.__dict__.get("__wrapped__", func))
+        signature = self._function_signature(func)
         for param in signature.parameters.values():
             if str(param)[0] == "*":
                 continue
@@ -167,7 +171,7 @@ class Clion:
             if not self._actions[command]:
                 continue
             subparsers_command_actions = subparser_command.add_subparsers(
-                dest="action", help="action to do", required=True
+                dest="action", help="action to do"
             )
             for action in self._actions[command]:
                 subparser_action = self._add_parser(
