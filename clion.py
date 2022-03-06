@@ -73,6 +73,13 @@ class Clion:
     def is_command(self, command):
         return command in self._commands
 
+    def _func_from_command_and_action(self, command, action=None):
+        return (
+            self._actions[command][action]
+            if action
+            else self._commands[command]
+        )
+
     def execute_command(self, command, args, unknown):
         if (
             command not in self._commands
@@ -87,25 +94,22 @@ class Clion:
                 or args.action
             )
             del args.action
-        func = (
-            self._actions[command][action]
-            if action
-            else self._commands[command]
-        )
+        func = self._func_from_command_and_action(command, action)
         pargs = unknown if self.command_forwards_arguments(func) else []
         return func(*pargs, **vars(args))
 
-    def add_parser(self, subparsers, name, command=None):
+    def add_parser(self, subparsers, command, action=None):
+        if not command and not action:
+            return
         aliases = (
-            self.aliases_from_action(command, name)
-            if command
-            else self.aliases_from_command(name)
+            self.aliases_from_action(command, action)
+            if action
+            else self.aliases_from_command(command)
         )
-        func = (
-            self._actions[command][name] if command else self._commands[name]
-        )
+        func = self._func_from_command_and_action(command, action)
         doc = func.__doc__
         help_ = doc.split("\n\n", maxsplit=1)[0].strip() if doc else None
+        name = action or command
         return subparsers.add_parser(name, aliases=aliases, help=help_)
 
     @staticmethod
@@ -119,11 +123,9 @@ class Clion:
         param_docs = re.findall(r"(?P<name>\w+)\n\s*(?P<doc>.+)\n", doc)
         return dict(param_docs)
 
-    def args_from_function(self, name: str, command=None):
+    def args_from_function(self, command, action=None):
         arguments = []
-        func = (
-            self._actions[command][name] if command else self._commands[name]
-        )
+        func = self._func_from_command_and_action(command, action)
         signature = inspect.signature(func.__dict__.get("__wrapped__", func))
         for param in signature.parameters.values():
             if str(param)[0] == "*":
