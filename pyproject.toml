@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "clion"
 version = "0.1.0"
-description = "Minimalistic CLI library"
+description = "Minimalistic library for building CLI applications"
 authors = ["Yevhen Shymotiuk <yshym@pm.me>"]
 
 [tool.poetry.dependencies]
