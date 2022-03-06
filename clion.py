@@ -54,12 +54,12 @@ class Clion:
 
         return decorator_command
 
-    def aliases_from_command(self, command):
+    def _aliases_from_command(self, command):
         return [
             al for al, com in self._command_aliases.items() if com == command
         ]
 
-    def aliases_from_action(self, command, action):
+    def _aliases_from_action(self, command, action):
         return [
             al
             for al, ac in self._action_aliases[command].items()
@@ -67,10 +67,10 @@ class Clion:
         ]
 
     @staticmethod
-    def command_forwards_arguments(f):
+    def _command_forwards_arguments(f):
         return str(inspect.signature(f)) in {"(*args)", "(*args, **kwargs)"}
 
-    def is_command(self, command):
+    def _is_command(self, command):
         return command in self._commands
 
     def _func_from_command_and_action(self, command, action=None):
@@ -80,7 +80,7 @@ class Clion:
             else self._commands[command]
         )
 
-    def execute_command(self, command, args, unknown):
+    def _execute_command(self, command, args, unknown):
         if (
             command not in self._commands
             and command not in self._command_aliases
@@ -95,16 +95,16 @@ class Clion:
             )
             del args.action
         func = self._func_from_command_and_action(command, action)
-        pargs = unknown if self.command_forwards_arguments(func) else []
+        pargs = unknown if self._command_forwards_arguments(func) else []
         return func(*pargs, **vars(args))
 
-    def add_parser(self, subparsers, command, action=None):
+    def _add_parser(self, subparsers, command, action=None):
         if not command and not action:
             return
         aliases = (
-            self.aliases_from_action(command, action)
+            self._aliases_from_action(command, action)
             if action
-            else self.aliases_from_command(command)
+            else self._aliases_from_command(command)
         )
         func = self._func_from_command_and_action(command, action)
         doc = func.__doc__
@@ -113,7 +113,7 @@ class Clion:
         return subparsers.add_parser(name, aliases=aliases, help=help_)
 
     @staticmethod
-    def parameter_docs(func):
+    def _parameter_docs(func):
         if not func.__doc__:
             return {}
         docs = re.split(r"-+", func.__doc__)
@@ -123,7 +123,7 @@ class Clion:
         param_docs = re.findall(r"(?P<name>\w+)\n\s*(?P<doc>.+)\n", doc)
         return dict(param_docs)
 
-    def args_from_function(self, command, action=None):
+    def _args_from_function(self, command, action=None):
         arguments = []
         func = self._func_from_command_and_action(command, action)
         signature = inspect.signature(func.__dict__.get("__wrapped__", func))
@@ -148,11 +148,11 @@ class Clion:
             argument["default"] = param.default if has_default_value else None
             if has_default_value:
                 argument["nargs"] = "?"
-            argument["help"] = self.parameter_docs(func).get(param.name)
+            argument["help"] = self._parameter_docs(func).get(param.name)
             arguments.append(argument)
         return arguments
 
-    def parse_args(self):
+    def _parse_args(self):
         parser = argparse.ArgumentParser(description="Nix helper")
         if not self._commands:
             return parser.parse_known_args()
@@ -160,8 +160,8 @@ class Clion:
             dest="command", help="command to execute", required=True
         )
         for command in self._commands:
-            subparser_command = self.add_parser(subparsers, command)
-            for command_argument in self.args_from_function(command):
+            subparser_command = self._add_parser(subparsers, command)
+            for command_argument in self._args_from_function(command):
                 name = command_argument.pop("name")
                 subparser_command.add_argument(name, **command_argument)
             if not self._actions[command]:
@@ -170,20 +170,20 @@ class Clion:
                 dest="action", help="action to do", required=True
             )
             for action in self._actions[command]:
-                subparser_action = self.add_parser(
-                    subparsers_command_actions, action, command
+                subparser_action = self._add_parser(
+                    subparsers_command_actions, command, action
                 )
-                for action_argument in self.args_from_function(
-                    action, command=command
+                for action_argument in self._args_from_function(
+                    command, action
                 ):
                     name = action_argument.pop("name")
                     subparser_action.add_argument(name, **action_argument)
         return parser.parse_known_args()
 
     def __call__(self):
-        args, unknown = self.parse_args()
+        args, unknown = self._parse_args()
         if "command" not in args:
             return None
         command = args.command
         del args.command
-        return self.execute_command(command, args, unknown)
+        return self._execute_command(command, args, unknown)
