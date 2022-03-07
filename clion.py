@@ -4,7 +4,7 @@ import inspect
 import re
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Callable, Dict, Set
+from typing import Callable, Dict, Optional, Set
 
 
 def _function_signature(func):
@@ -89,7 +89,8 @@ class ClionError(Exception):
 
 
 class Clion:
-    def __init__(self):
+    def __init__(self, description: Optional[str] = None):
+        self.description = description
         self._commands: Dict[str, Command] = {}
         self._actions: Dict[str, Dict[str, Action]] = defaultdict(dict)
 
@@ -162,7 +163,7 @@ class Clion:
         return subparsers.add_parser(name, **parser_data)
 
     def _parse_args(self):
-        parser = argparse.ArgumentParser(description="Nix helper")
+        parser = argparse.ArgumentParser(description=self.description)
         if not self._commands:
             return parser.parse_known_args()
         subparsers = parser.add_subparsers(
