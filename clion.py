@@ -98,20 +98,22 @@ class Clion:
 
         def decorator_command(command_func):
             command_name = command_func.__name__
-            command = Command(command_name, command_func, aliases)
+            command = Command(command_name, command_func, aliases or set())
             self._commands[command_name] = command
-            for alias in aliases:
-                self._commands[alias] = command
+            while aliases:
+                self._commands[aliases.pop()] = command
 
             def action(aliases=None):
                 """Make function an action of a cli command"""
 
                 def decorator_action(action_func):
                     _, action_name = action_func.__name__.split("_")
-                    action = Action(action_name, action_func, aliases, command)
+                    action = Action(
+                        action_name, action_func, aliases or set(), command
+                    )
                     self._actions[command_name][action_name] = action
-                    for alias in aliases:
-                        self._actions[command_name][alias] = action
+                    while aliases:
+                        self._actions[command_name][aliases.pop()] = action
 
                     @functools.wraps(action_func)
                     def wrapper(*args, **kwargs):
