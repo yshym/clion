@@ -3,6 +3,7 @@ name = "clion"
 version = "0.2.1"
 description = "Minimalistic library for building CLI applications"
 authors = ["Yevhen Shymotiuk <yshym@pm.me>"]
+repository = "https://github.com/yshym/clion"
 
 [tool.poetry.dependencies]
 python = "^3.7"
