@@ -16,7 +16,7 @@ app = Clion()
 
 @app.command()
 def hello(name):
-    """Greets a person"""
+    """Greet a person"""
     print(f"Hello, {name}!")
 
 
@@ -31,7 +31,7 @@ Nix helper
 
 positional arguments:
   {hello}     command to execute
-    hello     Greets a person
+    hello     Greet a person
 
 optional arguments:
   -h, --help  show this help message and exit
@@ -47,18 +47,18 @@ app = Clion()
 
 @app.command()
 def hello():
-    """Greets a person"""
+    """Greet a person"""
 
 
 @hello.action()
 def hello_english(name):
-    """Greets a person in english"""
+    """Greet a person in english"""
     print(f"Hello, {name}!")
 
 
 @hello.action()
 def hello_french(name):
-    """Greets a person in french"""
+    """Greet a person in french"""
     print(f"Salut, {name}!")
 
 
@@ -71,8 +71,8 @@ usage: test.py hello [-h] {english,french} ...
 
 positional arguments:
   {english,french}  action to do
-    english         Greets a person in english
-    french          Greets a person in french
+    english         Greet a person in english
+    french          Greet a person in french
 
 optional arguments:
   -h, --help        show this help message and exit
