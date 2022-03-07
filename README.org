@@ -1,1 +1,79 @@
 #+TITLE: clion
+
+* Table of contents :TOC_2:
+- [[#examples][Examples]]
+  - [[#command][Command]]
+  - [[#actions][Actions]]
+
+* Examples
+** Command
+#+begin_src python
+from clion import Clion
+
+
+app = Clion()
+
+
+@app.command()
+def hello(name):
+    """Greets a person"""
+    print(f"Hello, {name}!")
+
+
+if __name__ == "__main__":
+    app()
+#+end_src
+
+#+begin_example
+usage: test.py [-h] {hello} ...
+
+Nix helper
+
+positional arguments:
+  {hello}     command to execute
+    hello     Greets a person
+
+optional arguments:
+  -h, --help  show this help message and exit
+#+end_example
+
+** Actions
+#+begin_src python
+from clion import Clion
+
+
+app = Clion()
+
+
+@app.command()
+def hello():
+    """Greets a person"""
+
+
+@hello.action()
+def hello_english(name):
+    """Greets a person in english"""
+    print(f"Hello, {name}!")
+
+
+@hello.action()
+def hello_french(name):
+    """Greets a person in french"""
+    print(f"Salut, {name}!")
+
+
+if __name__ == "__main__":
+    app()
+#+end_src
+
+#+begin_example
+usage: test.py hello [-h] {english,french} ...
+
+positional arguments:
+  {english,french}  action to do
+    english         Greets a person in english
+    french          Greets a person in french
+
+optional arguments:
+  -h, --help        show this help message and exit
+#+end_example
