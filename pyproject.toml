@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "clion"
-version = "0.2.2"
+version = "0.2.3"
 description = "Minimalistic library for building CLI applications"
 authors = ["Yevhen Shymotiuk <yshym@pm.me>"]
 repository = "https://github.com/yshym/clion"
