@@ -4,7 +4,7 @@ import functools
 import inspect
 import re
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional, Set
+from typing import Callable, Dict, Iterable, List, Optional, Set
 
 
 def _function_signature(func):
@@ -86,12 +86,14 @@ class Clion:
         self._clions: List[Clion] = []
         self._all_commands: Dict[str, Command] = {}
 
-    def command(self, name=None, aliases=None):
+    def command(
+        self, name: str = None, aliases: Optional[Iterable[str]] = None
+    ):
         """Make function a cli command"""
 
         def decorator_command(command_func):
             command_name = name or command_func.__name__
-            command = Command(command_name, command_func, aliases or set())
+            command = Command(command_name, command_func, set(aliases or []))
             self._commands[command_name] = command
             self._all_commands[command_name] = command
             while aliases:
