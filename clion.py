@@ -1,23 +1,18 @@
+from __future__ import annotations
 import argparse
 import functools
 import inspect
 import re
-from collections import defaultdict
 from dataclasses import dataclass
-from typing import Callable, Dict, Optional, Set
+from typing import Callable, Dict, List, Optional, Set
 
 
 def _function_signature(func):
     return inspect.signature(func.__dict__.get("__wrapped__", func))
 
 
-class Hashable:
-    def __hash__(self):
-        return hash(self.__dict__.values())
-
-
-@dataclass(eq=False)
-class Command(Hashable):
+@dataclass
+class Command:
     name: str
     function: Callable
     aliases: Set[str]
@@ -79,52 +74,30 @@ class Command(Hashable):
         return {"name": self.name, "aliases": self.aliases, "help": self._doc}
 
 
-@dataclass(eq=False)
-class Action(Command):
-    command: Command
-
-
 class ClionError(Exception):
     pass
 
 
 class Clion:
     def __init__(self, description: Optional[str] = None):
+        self.name = None
         self.description = description
         self._commands: Dict[str, Command] = {}
-        self._actions: Dict[str, Dict[str, Action]] = defaultdict(dict)
+        self._clions: List[Clion] = []
+        self._all_commands: Dict[str, Command] = {}
 
-    def command(self, aliases=None):
+    def command(self, name=None, aliases=None):
         """Make function a cli command"""
 
         def decorator_command(command_func):
-            command_name = command_func.__name__
+            command_name = name or command_func.__name__
             command = Command(command_name, command_func, aliases or set())
             self._commands[command_name] = command
+            self._all_commands[command_name] = command
             while aliases:
-                self._commands[aliases.pop()] = command
-
-            def action(aliases=None):
-                """Make function an action of a cli command"""
-
-                def decorator_action(action_func):
-                    _, action_name = action_func.__name__.split("_")
-                    action = Action(
-                        action_name, action_func, aliases or set(), command
-                    )
-                    self._actions[command_name][action_name] = action
-                    while aliases:
-                        self._actions[command_name][aliases.pop()] = action
-
-                    @functools.wraps(action_func)
-                    def wrapper(*args, **kwargs):
-                        action_func(*args, **kwargs)
-
-                    return wrapper
-
-                return decorator_action
-
-            command_func.action = action
+                alias = aliases.pop()
+                self._commands[alias] = command
+                self._all_commands[alias] = command
 
             @functools.wraps(command_func)
             def wrapper(*args, **kwargs):
@@ -134,68 +107,55 @@ class Clion:
 
         return decorator_command
 
-    @staticmethod
-    def _func_from_command_and_action(command, action=None):
-        return action.function if action else command.function
-
-    def _execute_command(self, command, args, unknown):
-        command = self._commands.get(command)
+    def _execute_command(self, name, args, unknown):
+        command = self._all_commands.get(name)
         if not command:
             raise ClionError("command does not exist")
-        action = None
-        if "action" in args and args.action:
-            action = self._actions.get(command.name, {}).get(args.action)
-            del args.action
-        entity = action or command
-        pargs = unknown if entity._forwards_arguments else []
-        func_signature = _function_signature(entity.function)
+        pargs = unknown if command._forwards_arguments else []
+        func_signature = _function_signature(command.function)
         for arg in args.__dict__.copy():
             if arg not in func_signature.parameters:
                 delattr(args, arg)
-        return entity.function(*pargs, **vars(args))
+        return command.function(*pargs, **vars(args))
+
+    def add_clion(self, clion: Clion, name: str):
+        clion.name = name
+        self._all_commands.update(clion._commands)
+        clion._all_commands = self._all_commands
+        self._clions.append(clion)
 
     @staticmethod
-    def _add_parser(subparsers, command, action=None):
-        if not command and not action:
+    def _add_command_parser(subparsers, command):
+        if not command:
             return None
-        parser_data = action._parser_data if action else command._parser_data
+        parser_data = command._parser_data
         name = parser_data.pop("name")
         return subparsers.add_parser(name, **parser_data)
 
-    def _parse_args(self):
-        parser = argparse.ArgumentParser(description=self.description)
-        if not self._commands:
-            return parser.parse_known_args()
+    def _parser(self, parent_subparsers=None):
+        parser = (
+            parent_subparsers.add_parser(self.name, help=self.description)
+            if parent_subparsers
+            else argparse.ArgumentParser(description=self.description)
+        )
         subparsers = parser.add_subparsers(
             dest="command", help="command to execute", required=True
         )
         for command_name, command in self._commands.items():
             if command_name in command.aliases:
                 continue
-            subparser_command = self._add_parser(subparsers, command)
+            subparser_command = self._add_command_parser(subparsers, command)
             for command_argument in command._args:
                 name = command_argument.pop("name")
                 subparser_command.add_argument(name, **command_argument)
-            if not self._actions[command.name]:
-                continue
-            subparsers_command_actions = subparser_command.add_subparsers(
-                dest="action", help="action to do"
-            )
-            for action_name, action in self._actions[command.name].items():
-                if action_name in action.aliases:
-                    continue
-                subparser_action = self._add_parser(
-                    subparsers_command_actions, command, action
-                )
-                for action_argument in action._args:
-                    name = action_argument.pop("name")
-                    subparser_action.add_argument(name, **action_argument)
-        return parser.parse_known_args()
+        for clion in self._clions:
+            clion._parser(subparsers)
+        return parser
 
     def __call__(self):
-        args, unknown = self._parse_args()
+        args, unknown = self._parser().parse_known_args()
         if "command" not in args:
             return None
-        command = args.command
+        command_name = args.command
         del args.command
-        return self._execute_command(command, args, unknown)
+        return self._execute_command(command_name, args, unknown)

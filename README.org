@@ -25,11 +25,10 @@ if __name__ == "__main__":
 #+end_src
 
 #+begin_example
-usage: test.py [-h] {hello} ...
+usage: test.py hello [-h] name
 
 positional arguments:
-  {hello}     command to execute
-    hello     Greet a person
+  name
 
 optional arguments:
   -h, --help  show this help message and exit
@@ -41,20 +40,17 @@ from clion import Clion
 
 
 app = Clion()
+hello_app = Clion()
+app.add_clion(hello_app, "hello")
 
 
-@app.command()
-def hello():
-    """Greet a person"""
-
-
-@hello.action()
+@hello_app.command("english")
 def hello_english(name):
     """Greet a person in english"""
     print(f"Hello, {name}!")
 
 
-@hello.action()
+@hello_app.command("french")
 def hello_french(name):
     """Greet a person in french"""
     print(f"Salut, {name}!")
