@@ -27,8 +27,6 @@ if __name__ == "__main__":
 #+begin_example
 usage: test.py [-h] {hello} ...
 
-Nix helper
-
 positional arguments:
   {hello}     command to execute
     hello     Greet a person
