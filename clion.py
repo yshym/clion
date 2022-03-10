@@ -55,14 +55,21 @@ class Command:
 
     @property
     def _doc(self):
-        doc = self.function.__doc__
-        return doc.split("\n\n", maxsplit=1)[0].strip() if doc else None
+        func_doc = self.function.__doc__
+        if not func_doc:
+            return None
+        func_doc_splitted = func_doc.split("\n\n")
+        if func_doc_splitted[-1].lstrip().startswith("Parameters"):
+            func_doc_splitted.pop()
+        doc = "".join(func_doc_splitted).strip()
+        return doc
 
     @property
     def _parameter_docs(self):
-        if not self.function.__doc__:
+        func_doc = self.function.__doc__
+        if not func_doc:
             return {}
-        docs = re.split(r"-+", self.function.__doc__)
+        docs = re.split(r"-+", func_doc)
         if len(docs) < 2:
             return {}
         doc = docs[1]
