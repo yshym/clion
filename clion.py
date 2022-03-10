@@ -27,7 +27,11 @@ class Command:
             argument = {}
             argument["name"] = param.name
             has_annotation = param.annotation is not param.empty
+            has_default_value = param.default is not param.empty
             type_ = param.annotation if has_annotation else None
+            if not type_ and has_default_value:
+                type_ = type(param.default)
+            nargs = None
             if (
                 type_
                 and hasattr(type_, "__origin__")
@@ -36,12 +40,17 @@ class Command:
                 type_ = (
                     type_.__args__[0] if hasattr(type_, "__args__") else None
                 )
-                argument["nargs"] = "+"
-            argument["type"] = type_
-            has_default_value = param.default is not param.empty
-            argument["default"] = param.default if has_default_value else None
+                nargs = "+"
+            if type_ is bool:
+                argument["name"] = "--" + argument["name"]
+                argument["action"] = "store_true"
+            else:
+                argument["type"] = type_
+                argument["nargs"] = nargs
             if has_default_value:
-                argument["nargs"] = "?"
+                argument["default"] = param.default
+                if type_ is not bool:
+                    argument["nargs"] = "?"
             argument["help"] = self._parameter_docs.get(param.name)
             arguments.append(argument)
         return arguments
